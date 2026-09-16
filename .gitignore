@@ -1,0 +1,39 @@
+# Python environments and caches
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Local application data
+data/*
+!data/.gitkeep
+storage/*
+!storage/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs and generated files
+*.log
+*.tmp
+*.bak
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
