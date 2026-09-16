@@ -1,11 +1,13 @@
 import os
 
 import gradio as gr
+import spaces
 
 from app.rag_engine import add_documents_to_vectorstore, query_rag_system
 from app.utils import process_pdf
 
 
+@spaces.GPU
 def process_document(file_path):
     if not file_path:
         return "Please upload a PDF document first."
@@ -17,6 +19,7 @@ def process_document(file_path):
     return f"Successfully indexed {len(chunks)} chunks from {os.path.basename(file_path)}."
 
 
+@spaces.GPU
 def answer_question(question, history):
     if not question.strip():
         return history, "Please enter a question."
