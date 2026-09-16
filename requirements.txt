@@ -1,5 +1,7 @@
 fastapi
 uvicorn
+streamlit
+requests
 pydantic
 pydantic-settings
 python-dotenv

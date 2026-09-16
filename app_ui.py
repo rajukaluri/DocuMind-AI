@@ -1,7 +1,37 @@
-import streamlit as st
-import requests
+import os
 
-API_URL = "http://127.0.0.1:8000"
+import requests
+import streamlit as st
+
+API_URL = os.getenv("RAG_API_URL", "").rstrip("/")
+
+if not API_URL:
+    from app.rag_engine import add_documents_to_vectorstore, query_rag_system
+
+
+def upload_document(file_name, file_bytes):
+    if API_URL:
+        return requests.post(
+            f"{API_URL}/upload",
+            files={"file": (file_name, file_bytes, "application/pdf")},
+            timeout=120,
+        )
+
+    from app.utils import process_pdf
+
+    os.makedirs("data", exist_ok=True)
+    file_path = os.path.join("data", file_name)
+    with open(file_path, "wb") as document_file:
+        document_file.write(file_bytes)
+    chunks = process_pdf(file_path)
+    add_documents_to_vectorstore(chunks)
+    return {"message": f"Successfully processed '{file_name}'", "chunks_indexed": len(chunks)}
+
+
+def query_document(question):
+    if API_URL:
+        return requests.post(f"{API_URL}/query", json={"question": question}, timeout=120)
+    return {"answer": query_rag_system(question)}
 
 st.set_page_config(
     page_title="Enterprise DocAI | RAG Assistant",
@@ -51,21 +81,21 @@ with st.sidebar:
         if uploaded_file is not None:
             with st.status("Ingesting document...", expanded=True) as status:
                 try:
-                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
-                    response = requests.post(f"{API_URL}/upload", files=files)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
+                    result = upload_document(uploaded_file.name, uploaded_file.getvalue())
+                    success = result.status_code == 200 if API_URL else True
+
+                    if success:
+                        data = result.json() if API_URL else result
                         st.session_state.indexed_file = uploaded_file.name
                         st.session_state.chunks = data.get("chunks_indexed", 0)
                         status.update(label="Document indexed successfully!", state="complete", expanded=False)
                         st.toast("ChromaDB Vector Store Updated!", icon="✅")
                     else:
                         status.update(label="Processing Failed", state="error")
-                        st.error(response.json().get("detail", "Error uploading file."))
+                        st.error(result.json().get("detail", "Error uploading file."))
                 except Exception as e:
-                    status.update(label="Connection Error", state="error")
-                    st.error(f"Cannot connect to FastAPI server: {e}")
+                    status.update(label="Processing Failed", state="error")
+                    st.error(f"Document processing failed: {e}")
         else:
             st.warning("Please attach a PDF document first.")
 
@@ -113,13 +143,14 @@ if user_query := st.chat_input("Ask a question about your uploaded document...")
     with st.chat_message("assistant", avatar="🤖"):
         with st.spinner("Retrieving relevant chunks & generating answer..."):
             try:
-                res = requests.post(f"{API_URL}/query", json={"question": user_query})
-                if res.status_code == 200:
-                    answer = res.json().get("answer", "No answer returned.")
+                result = query_document(user_query)
+                success = result.status_code == 200 if API_URL else True
+                if success:
+                    answer = (result.json() if API_URL else result).get("answer", "No answer returned.")
                     st.markdown(answer)
                     st.session_state.messages.append({"role": "assistant", "content": answer})
                 else:
-                    err = res.json().get("detail", "Error retrieving context.")
+                    err = result.json().get("detail", "Error retrieving context.")
                     st.error(f"Backend Error: {err}")
             except Exception as e:
-                st.error(f"Failed to communicate with FastAPI: {e}")
+                st.error(f"Question processing failed: {e}")
