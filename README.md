@@ -3,8 +3,8 @@ title: DocuMind AI
 emoji: 📄
 colorFrom: indigo
 colorTo: blue
-sdk: streamlit
-app_file: app_ui.py
+sdk: gradio
+app_file: app_gradio.py
 pinned: false
 ---
 
